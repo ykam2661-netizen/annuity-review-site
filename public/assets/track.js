@@ -18,8 +18,10 @@
   // Keep UTM / click IDs from the landing URL for the whole session so they reach GHL.
   var keys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "fbclid", "gclid"];
   keys.forEach(function (k) { var v = params.get(k); if (v) NCR.ss.set("ncr_" + k, v); });
+  if (params.get("fbclid")) NCR.ss.set("ncr_fbclidAt", String(Date.now()));
   NCR.attribution = function () {
     var o = {}; keys.forEach(function (k) { var v = NCR.ss.get("ncr_" + k); if (v) o[k] = v; });
+    if (o.fbclid) o.fbclidAt = Number(NCR.ss.get("ncr_fbclidAt")) || undefined;
     o.landingPage = NCR.ss.get("ncr_landing") || location.href.split("?")[0];
     return o;
   };
@@ -38,6 +40,7 @@
     fbq("init", C.metaPixelId);
     fbq("track", "PageView");
   }
-  NCR.pixel = function (name, eventId) { if (window.fbq) fbq("track", name, {}, { eventID: eventId }); };
+  // Browser event; the server sends the same event_id through the Conversions API so Meta de-duplicates.
+  NCR.pixel = function (name, eventId, data) { if (window.fbq) fbq("track", name, data || {}, { eventID: eventId }); };
   NCR.event = function (name, data) { if (window.fbq) fbq("trackCustom", name, data || {}); };
 })();

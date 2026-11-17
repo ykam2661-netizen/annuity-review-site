@@ -1,4 +1,5 @@
 import { cfg, ghl, json, signToken, toE164 } from "../lib/ghl.mjs";
+import { tierFor, valueFor, userData, sendEvent } from "../lib/meta.mjs";
 
 export const config = { path: "/api/lead" };
 
@@ -21,15 +22,18 @@ export default async (req) => {
   if (!c.token || !c.locationId) return json({ ok: false, error: "not_configured" }, 500);
 
   const [firstName, ...rest] = name.split(" ");
+  const lastName = rest.join(" ");
   const answers = b.answers && typeof b.answers === "object" ? b.answers : {};
   const attr = b.attribution && typeof b.attribution === "object" ? b.attribution : {};
+  const tier = tierFor(answers.savings);
+  const value = valueFor(tier);
 
   const up = await ghl("/contacts/upsert", {
     method: "POST",
     body: {
       locationId: c.locationId,
       firstName,
-      lastName: rest.join(" "),
+      lastName,
       name,
       email,
       phone,
@@ -46,9 +50,19 @@ export default async (req) => {
 
   const lines = ["Annuity Review survey answers:"];
   for (const k of Object.keys(LABELS)) if (answers[k]) lines.push(`• ${LABELS[k]}: ${String(answers[k]).slice(0, 120)}`);
+  lines.push(`• Lead value sent to Meta: $${value}`);
   const attrLines = Object.entries(attr).filter(([, v]) => v).map(([k, v]) => `• ${k}: ${String(v).slice(0, 300)}`);
   if (attrLines.length) lines.push("", "Attribution:", ...attrLines);
   await ghl(`/contacts/${contactId}/notes`, { method: "POST", body: { body: lines.join("\n") } });
 
-  return json({ ok: true, token: signToken(contactId) });
+  // Server-side copy of the browser's SubmitApplication event (same event_id, so Meta counts it once).
+  await sendEvent(req, {
+    eventName: "SubmitApplication",
+    eventId: typeof b.leadEventId === "string" ? b.leadEventId.slice(0, 64) : "",
+    value,
+    sourceUrl: typeof attr.landingPage === "string" ? attr.landingPage : undefined,
+    user: userData(req, { email, phone, firstName, lastName, externalId: contactId, fbclid: attr.fbclid, fbclidAt: attr.fbclidAt }),
+  });
+
+  return json({ ok: true, token: signToken(contactId, tier), value });
 };

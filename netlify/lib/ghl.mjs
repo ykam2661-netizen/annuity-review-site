@@ -35,22 +35,22 @@ export async function ghl(path, { method = "GET", body, version = "2021-07-28" }
 export const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
-// Signed, expiring token that ties the booking step to the contact we created.
-export function signToken(contactId, hours = 72) {
+// Signed, expiring token that ties the booking step to the contact we created (and its value tier).
+export function signToken(contactId, tier = 0, hours = 72) {
   const exp = Math.floor(Date.now() / 1000) + hours * 3600;
-  const payload = `${contactId}.${exp}`;
+  const payload = `${contactId}.${exp}.${tier}`;
   const sig = crypto.createHmac("sha256", cfg().secret).update(payload).digest("base64url");
   return `${payload}.${sig}`;
 }
 
 export function readToken(token) {
   const parts = String(token || "").split(".");
-  if (parts.length !== 3) return null;
-  const [id, exp, sig] = parts;
-  const good = crypto.createHmac("sha256", cfg().secret).update(`${id}.${exp}`).digest("base64url");
+  if (parts.length !== 4) return null;
+  const [id, exp, tier, sig] = parts;
+  const good = crypto.createHmac("sha256", cfg().secret).update(`${id}.${exp}.${tier}`).digest("base64url");
   if (sig.length !== good.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good))) return null;
   if (Number(exp) < Date.now() / 1000) return null;
-  return id;
+  return { id, tier: Number(tier) || 0 };
 }
 
 export function toE164(phone) {

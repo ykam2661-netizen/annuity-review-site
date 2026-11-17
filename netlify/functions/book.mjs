@@ -1,4 +1,5 @@
 import { cfg, ghl, json, readToken } from "../lib/ghl.mjs";
+import { valueFor, userData, sendEvent } from "../lib/meta.mjs";
 
 export const config = { path: "/api/book" };
 
@@ -9,8 +10,10 @@ export default async (req) => {
   let b;
   try { b = await req.json(); } catch { return json({ ok: false, error: "bad_json" }, 400); }
 
-  const contactId = readToken(b.token);
-  if (!contactId) return json({ ok: false, error: "bad_token" }, 401);
+  const t = readToken(b.token);
+  if (!t) return json({ ok: false, error: "bad_token" }, 401);
+  const contactId = t.id;
+  const value = valueFor(t.tier);
   const startMs = Date.parse(b.start);
   if (!startMs || startMs < Date.now()) return json({ ok: false, error: "bad_time" }, 400);
   const open = OPEN.includes(b.open) ? b.open : "";
@@ -43,5 +46,14 @@ export default async (req) => {
     await ghl(`/contacts/${contactId}/notes`, { method: "POST", body: { body: `Booked Free Retirement Review.\n• Open to discussing annuities: ${open}` } });
   }
 
-  return json({ ok: true, confirmed: true, appointmentId: id, start: b.start });
+  // Server-side Schedule event, matched to the person with their GHL contact details.
+  const ct = (await ghl(`/contacts/${contactId}`)).data?.contact || {};
+  await sendEvent(req, {
+    eventName: "Schedule",
+    eventId: typeof b.eventId === "string" ? b.eventId.slice(0, 64) : "",
+    value,
+    user: userData(req, { email: ct.email, phone: ct.phone, firstName: ct.firstName, lastName: ct.lastName, externalId: contactId }),
+  });
+
+  return json({ ok: true, confirmed: true, appointmentId: id, start: b.start, value });
 };
