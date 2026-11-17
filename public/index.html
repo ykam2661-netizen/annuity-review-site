@@ -34,11 +34,12 @@
   <div class="slide" data-step="3" hidden><h2 tabindex="-1">Roughly how much do you have saved for retirement?</h2>
     <p class="help">401k, TSP, IRAs and savings. Don't include your home.</p>
     <div class="opts">
-      <button type="button" class="opt" data-key="savings" data-value="Under $250k" data-dq aria-pressed="false"><span>Under $250k</span><span class="ring" aria-hidden="true"></span></button>
+      <button type="button" class="opt" data-key="savings" data-value="Under $100k" data-dq aria-pressed="false"><span>Under $100k</span><span class="ring" aria-hidden="true"></span></button>
+      <button type="button" class="opt" data-key="savings" data-value="$100k – $250k" aria-pressed="false"><span>$100k – $250k</span><span class="ring" aria-hidden="true"></span></button>
       <button type="button" class="opt" data-key="savings" data-value="$250k – $500k" aria-pressed="false"><span>$250k – $500k</span><span class="ring" aria-hidden="true"></span></button>
       <button type="button" class="opt" data-key="savings" data-value="$500k – $1M" aria-pressed="false"><span>$500k – $1M</span><span class="ring" aria-hidden="true"></span></button>
       <button type="button" class="opt" data-key="savings" data-value="$1M – $1.5M" aria-pressed="false"><span>$1M – $1.5M</span><span class="ring" aria-hidden="true"></span></button>
-      <button type="button" class="opt" data-key="savings" data-value="Over $1.5M" data-dq aria-pressed="false"><span>Over $1.5M</span><span class="ring" aria-hidden="true"></span></button>
+      <button type="button" class="opt" data-key="savings" data-value="Over $1.5M" aria-pressed="false"><span>Over $1.5M</span><span class="ring" aria-hidden="true"></span></button>
     </div></div>
   <div class="slide" data-step="4" hidden><h2 tabindex="-1">How soon are you looking to make decisions about your retirement savings?</h2>
     <div class="opts">
@@ -95,8 +96,8 @@
     form.querySelectorAll('.opt[data-key="' + b.dataset.key + '"]').forEach(function (o) { o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
     answers[b.dataset.key] = b.dataset.value;
     var dq = b.hasAttribute("data-dq");
-    NCR.event("Survey_Q" + step + "_Answered", { step: step, answer: b.dataset.value });
-    if (dq) NCR.event("Survey_Disqualified", { step: step });
+    // Disqualified answers send nothing to Meta.
+    if (!dq) NCR.event("Survey_Q" + step + "_Answered", { step: step, answer: b.dataset.value });
     setTimeout(function () {
       locked = false;
       if (dq) { location.href = "thank-you-dq.html"; return; }
