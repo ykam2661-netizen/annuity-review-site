@@ -26,7 +26,7 @@ export default async (req) => {
   const answers = b.answers && typeof b.answers === "object" ? b.answers : {};
   const attr = b.attribution && typeof b.attribution === "object" ? b.attribution : {};
   const tier = tierFor(answers.savings);
-  const value = valueFor(tier);
+  const value = valueFor(tier, "application");
 
   const up = await ghl("/contacts/upsert", {
     method: "POST",
@@ -50,7 +50,7 @@ export default async (req) => {
 
   const lines = ["Annuity Review survey answers:"];
   for (const k of Object.keys(LABELS)) if (answers[k]) lines.push(`• ${LABELS[k]}: ${String(answers[k]).slice(0, 120)}`);
-  lines.push(`• Lead value sent to Meta: $${value}`);
+  lines.push(`• Meta values: application $${value}, if booked $${valueFor(tier, "schedule")}`);
   const attrLines = Object.entries(attr).filter(([, v]) => v).map(([k, v]) => `• ${k}: ${String(v).slice(0, 300)}`);
   if (attrLines.length) lines.push("", "Attribution:", ...attrLines);
   await ghl(`/contacts/${contactId}/notes`, { method: "POST", body: { body: lines.join("\n") } });

@@ -1,18 +1,24 @@
 import crypto from "node:crypto";
 import { env } from "./ghl.mjs";
 
-// Value Meta optimizes on, by investable-assets answer. More assets = higher value.
+// Values Meta optimizes on. A booked call is worth far more than a filled application,
+// and a closed client is worth the most. More investable assets = higher value at each step.
 // "Under $100k" is disqualified and never reaches Meta.
 export const TIERS = {
-  "$100k – $250k": { tier: 1, value: 100 },
-  "$250k – $500k": { tier: 2, value: 250 },
-  "$500k – $1M": { tier: 3, value: 500 },
-  "$1M – $1.5M": { tier: 4, value: 1000 },
-  "Over $1.5M": { tier: 5, value: 1500 },
+  "$100k – $250k": 1,
+  "$250k – $500k": 2,
+  "$500k – $1M": 3,
+  "$1M – $1.5M": 4,
+  "Over $1.5M": 5,
 };
-export const TIER_VALUES = { 0: 50, 1: 100, 2: 250, 3: 500, 4: 1000, 5: 1500 };
-export const tierFor = (savings) => TIERS[savings]?.tier ?? 0;
-export const valueFor = (tier) => TIER_VALUES[tier] ?? TIER_VALUES[0];
+export const VALUES = {
+  //            tier: 0(unknown) 1      2      3      4      5
+  application: [25,           25,    50,    100,   150,   200],
+  schedule:    [250,          250,   500,   1000,  1500,  2000],
+};
+export const CLOSE_VALUE = 5000;
+export const tierFor = (savings) => TIERS[savings] ?? 0;
+export const valueFor = (tier, kind = "application") => (VALUES[kind] || VALUES.application)[tier] ?? VALUES[kind][0];
 
 const sha = (v) => (v ? crypto.createHash("sha256").update(String(v).trim().toLowerCase()).digest("hex") : undefined);
 
@@ -40,7 +46,7 @@ export function userData(req, { email, phone, firstName, lastName, externalId, f
 }
 
 // Sends one server-side event. Same event_id as the browser Pixel so Meta de-duplicates them.
-export async function sendEvent(req, { eventName, eventId, value, user, sourceUrl }) {
+export async function sendEvent(req, { eventName, eventId, value, user, sourceUrl, actionSource = "website" }) {
   const pixelId = env("META_PIXEL_ID");
   const token = env("META_CAPI_TOKEN");
   if (!pixelId || !token || !eventId) return { skipped: true };
@@ -49,8 +55,8 @@ export async function sendEvent(req, { eventName, eventId, value, user, sourceUr
       event_name: eventName,
       event_time: Math.floor(Date.now() / 1000),
       event_id: eventId,
-      action_source: "website",
-      event_source_url: sourceUrl || req.headers.get("referer") || "https://chapterretire.cc/",
+      action_source: actionSource,
+      event_source_url: actionSource === "website" ? (sourceUrl || req.headers.get("referer") || "https://chapterretire.cc/") : undefined,
       user_data: user,
       custom_data: { value, currency: "USD", content_name: "Free Retirement Review" },
     }],

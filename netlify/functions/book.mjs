@@ -13,7 +13,7 @@ export default async (req) => {
   const t = readToken(b.token);
   if (!t) return json({ ok: false, error: "bad_token" }, 401);
   const contactId = t.id;
-  const value = valueFor(t.tier);
+  const value = valueFor(t.tier, "schedule");
   const startMs = Date.parse(b.start);
   if (!startMs || startMs < Date.now()) return json({ ok: false, error: "bad_time" }, 400);
   const open = OPEN.includes(b.open) ? b.open : "";

@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="preload" href="assets/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="assets/fonts/inter.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="assets/site.css?v=4"><link rel="icon" href="assets/favicon.ico"><title>Book Your Free Consultation</title></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="preload" href="assets/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="assets/fonts/inter.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="assets/site.css?v=5"><link rel="icon" href="assets/favicon.ico"><title>Book Your Free Consultation</title></head><body>
 <div id="site-header"></div>
 <main class="center"><h1 class="serif big">Book Your<br><em>Free Consultation</em></h1>
 <p class="sub" id="bookSub">Pick the time that works best for you.</p>
@@ -27,7 +27,7 @@
 <p class="brand-cap"><span data-c="brand"></span><br>Operated by <span data-c="legalEntity"></span></p>
 <div class="trust"><span>Completely Free</span><span>No Pressure</span><span>Licensed Agents</span><span>30 Minutes</span></div>
 </main><div id="site-footer"></div>
-<script src="assets/config.js?v=4"></script><script src="assets/track.js?v=4"></script><script src="assets/site.js?v=4"></script>
+<script src="assets/config.js?v=5"></script><script src="assets/track.js?v=5"></script><script src="assets/site.js?v=5"></script>
 <script>
 (function () {
   var el = function (i) { return document.getElementById(i); };
@@ -96,7 +96,7 @@
     NCR.post("/api/book", { token: token, start: chosen, open: open, tz: tz, eventId: id }).then(function (r) {
       busy = false; btn.disabled = false; btn.textContent = "Confirm My Call →";
       if (r.ok && r.data.confirmed === true && r.data.appointmentId) {
-        NCR.pixel("Schedule", id, { value: r.data.value || Number(NCR.ss.get("ncr_value")) || 0, currency: "USD", content_name: "Free Retirement Review" }); NCR.ss.set("ncr_appt", r.data.start); location.href = "thank-you.html"; return;
+        NCR.pixel("Schedule", id, { value: r.data.value || 0, currency: "USD", content_name: "Free Retirement Review" }); NCR.ss.set("ncr_appt", r.data.start); location.href = "thank-you.html"; return;
       }
       if (r.status === 409) { reset("That time was just taken. Please choose another."); return; }
       err.textContent = "We couldn't confirm your call, so it isn't booked yet. Please try again."; err.hidden = false;
