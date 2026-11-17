@@ -17,6 +17,11 @@ export const VALUES = {
   schedule:    [250,          250,   500,   1000,  1500,  2000],
 };
 export const CLOSE_VALUE = 5000;
+// Pipeline stages sent from GHL. Follow-up sits between the best booking ($2,000) and a close ($5,000).
+export const STAGE_EVENTS = {
+  followup: { event: "Lead", value: 2500, label: "Moved to Follow up Call" },
+  closed: { event: "Purchase", value: CLOSE_VALUE, label: "Closed client" },
+};
 export const tierFor = (savings) => TIERS[savings] ?? 0;
 export const valueFor = (tier, kind = "application") => (VALUES[kind] || VALUES.application)[tier] ?? VALUES[kind][0];
 
