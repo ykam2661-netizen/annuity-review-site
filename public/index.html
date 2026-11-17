@@ -124,7 +124,7 @@
     btn.disabled = true; btn.textContent = "One moment…"; err.hidden = true;
     NCR.post("/api/lead", { fullName: n.value, phone: p.value, email: m.value, company: el("company").value, answers: answers, tz: Intl.DateTimeFormat().resolvedOptions().timeZone, leadEventId: leadId, attribution: NCR.attribution() }).then(function (r) {
       if (r.ok && r.data.ok) {
-        NCR.pixel("Lead", leadId);
+        NCR.pixel("SubmitApplication", leadId);
         NCR.ss.set("ncr_token", r.data.token || "");
         location.href = "booking.html";
         return;
