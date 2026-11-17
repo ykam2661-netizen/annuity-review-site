@@ -1,0 +1,107 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="preload" href="assets/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="assets/fonts/inter.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="assets/site.css"><link rel="icon" href="assets/favicon.ico"><title>Book Your Free Consultation</title></head><body>
+<div id="site-header"></div>
+<main class="center"><h1 class="serif big">Book Your<br><em>Free Consultation</em></h1>
+<p class="sub" id="bookSub">Pick the time that works best for you.</p>
+<div class="err" id="previewNote" hidden>Preview mode: nothing can be booked from this view.</div>
+<div class="cal-card">
+  <div class="cal-head"><b>Your Free Retirement Review</b><span>30 Minutes</span></div>
+  <div class="cal-body" id="calBody">
+    <p class="cal-tz" id="calStatus" role="status">Loading available times…</p>
+    <div class="days" id="days"></div>
+    <div id="times"></div>
+    <div id="qBox" hidden>
+      <p class="picked" id="picked"></p>
+      <h2 class="q-open" id="qTitle" tabindex="-1">Are you open to discussing annuities?</h2>
+      <div class="opts" id="openOpts">
+        <button type="button" class="opt" data-open="Yes" aria-pressed="false"><span>Yes</span><span class="ring" aria-hidden="true"></span></button>
+        <button type="button" class="opt" data-open="Depends on the Advisor" aria-pressed="false"><span>Depends on the Advisor</span><span class="ring" aria-hidden="true"></span></button>
+        <button type="button" class="opt" data-open="No" aria-pressed="false"><span>No</span><span class="ring" aria-hidden="true"></span></button>
+      </div>
+      <div class="err" id="bookErr" role="alert" hidden></div>
+      <button type="button" class="btn-main" id="confirm" style="margin-top:18px">Confirm My Call →</button>
+      <button type="button" class="back" id="change">← Choose a different time</button>
+    </div>
+    <p class="legal-links"><a data-href="privacyUrl" href="#">Privacy Policy</a> | <a data-href="termsUrl" href="#">Terms of Service</a></p>
+  </div>
+</div>
+<p class="brand-cap"><span data-c="brand"></span><br>Operated by <span data-c="legalEntity"></span></p>
+<div class="trust"><span>Completely Free</span><span>No Pressure</span><span>Licensed Agents</span><span>30 Minutes</span></div>
+</main><div id="site-footer"></div>
+<script src="assets/config.js"></script><script src="assets/track.js"></script><script src="assets/site.js"></script>
+<script>
+(function () {
+  var el = function (i) { return document.getElementById(i); };
+  var token = NCR.ss.get("ncr_token");
+  if (!NCR.preview && !token) { location.replace("index.html"); return; }
+  el("previewNote").hidden = !NCR.preview;
+  NCR.event("Booking_Viewed");
+  var tz = Intl.DateTimeFormat().resolvedOptions().timeZone, days = [], day = 0, chosen = "", open = "", busy = false;
+  var dayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  var timeFmt = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
+  var fullFmt = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+  var chip = function (cls, text, on) { var b = document.createElement("button"); b.type = "button"; b.className = cls; b.textContent = text; b.addEventListener("click", on); return b; };
+  function renderDays() {
+    var box = el("days"); box.textContent = "";
+    days.forEach(function (d, i) {
+      var b = chip("day", dayFmt.format(new Date(d.date + "T12:00:00Z")), function () { day = i; renderDays(); });
+      b.setAttribute("aria-pressed", i === day ? "true" : "false"); box.appendChild(b);
+    });
+    renderTimes();
+  }
+  function renderTimes() {
+    var box = el("times"); box.textContent = "";
+    var groups = [["Morning", 0, 12], ["Afternoon", 12, 17], ["Evening", 17, 24]];
+    groups.forEach(function (g) {
+      var slots = days[day].slots.filter(function (s) { var h = new Date(s).getHours(); return h >= g[1] && h < g[2]; });
+      if (!slots.length) return;
+      var h = document.createElement("h3"); h.className = "t-group"; h.textContent = g[0]; box.appendChild(h);
+      var wrap = document.createElement("div"); wrap.className = "t-grid";
+      slots.forEach(function (s) { wrap.appendChild(chip("time", timeFmt.format(new Date(s)), function () { pick(s); })); });
+      box.appendChild(wrap);
+    });
+  }
+  function pick(s) {
+    chosen = s; el("days").hidden = el("times").hidden = el("calStatus").hidden = true;
+    el("qBox").hidden = false; el("picked").textContent = fullFmt.format(new Date(s));
+    el("bookSub").textContent = "One quick question, then you're all set.";
+    NCR.event("Slot_Selected"); el("qTitle").focus({ preventScroll: true }); document.querySelector(".cal-card").scrollIntoView({ block: "start" });
+  }
+  function reset(msg) {
+    chosen = ""; el("qBox").hidden = true; el("days").hidden = el("times").hidden = el("calStatus").hidden = false;
+    el("bookSub").textContent = "Pick the time that works best for you."; load(msg);
+  }
+  function load(msg) {
+    el("calStatus").textContent = "Loading available times…"; el("days").textContent = ""; el("times").textContent = "";
+    fetch("/api/slots?tz=" + encodeURIComponent(tz)).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) throw 0;
+      days = d.days; day = 0;
+      if (!days.length) { el("calStatus").textContent = "No times are open right now. We'll reach out to you shortly."; return; }
+      el("calStatus").textContent = (msg ? msg + " " : "") + "Times shown in your local time."; renderDays();
+    }).catch(function () { el("calStatus").textContent = "We couldn't load the calendar. Please refresh the page."; });
+  }
+  el("openOpts").addEventListener("click", function (e) {
+    var b = e.target.closest(".opt"); if (!b) return;
+    open = b.dataset.open; el("bookErr").hidden = true;
+    el("openOpts").querySelectorAll(".opt").forEach(function (o) { o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
+    NCR.event("Annuity_Question_Answered", { answer: open });
+  });
+  el("change").addEventListener("click", function () { reset(); });
+  el("confirm").addEventListener("click", function () {
+    var err = el("bookErr"), btn = el("confirm");
+    if (!open) { err.textContent = "Please choose an answer."; err.hidden = false; return; }
+    if (NCR.preview) { err.textContent = "Preview mode: booking is off."; err.hidden = false; return; }
+    if (busy) return;
+    busy = true; btn.disabled = true; btn.textContent = "Booking your call…"; err.hidden = true;
+    var id = NCR.uuid();
+    NCR.post("/api/book", { token: token, start: chosen, open: open, tz: tz, eventId: id }).then(function (r) {
+      busy = false; btn.disabled = false; btn.textContent = "Confirm My Call →";
+      if (r.ok && r.data.confirmed === true && r.data.appointmentId) {
+        NCR.pixel("Schedule", id); NCR.ss.set("ncr_appt", r.data.start); location.href = "thank-you.html"; return;
+      }
+      if (r.status === 409) { reset("That time was just taken. Please choose another."); return; }
+      err.textContent = "We couldn't confirm your call, so it isn't booked yet. Please try again."; err.hidden = false;
+    });
+  });
+  load();
+})();
+</script></body></html>
