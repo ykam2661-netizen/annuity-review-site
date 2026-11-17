@@ -5,7 +5,18 @@
 [functions]
   node_bundler = "esbuild"
 
+# Code and pages: always revalidate so changes reach visitors immediately.
 [[headers]]
-  for = "/assets/*"
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Fonts and images rarely change: cache for a day.
+[[headers]]
+  for = "/assets/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+[[headers]]
+  for = "/assets/carriers/*"
   [headers.values]
     Cache-Control = "public, max-age=86400"
