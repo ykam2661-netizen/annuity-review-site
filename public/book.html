@@ -1,0 +1,128 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><link rel="preload" href="assets/fonts/fraunces.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="assets/fonts/inter.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="assets/site.css?v=5"><link rel="icon" href="assets/favicon.ico"><title>Book Your Free Consultation</title></head><body>
+<div id="site-header"></div>
+<main class="center"><h1 class="serif big">Book Your<br><em>Free Consultation</em></h1>
+<p class="sub" id="bookSub">Pick the time that works best for you.</p>
+<div class="err" id="previewNote" hidden>Preview mode: nothing can be booked from this view.</div>
+<div class="cal-card">
+  <div class="cal-head"><b>Your Free Retirement Review</b><span>30 Minutes</span></div>
+  <div class="cal-body" id="calBody">
+    <p class="cal-tz" id="calStatus" role="status">Loading available times…</p>
+    <div class="days" id="days"></div>
+    <div id="times"></div>
+    <form id="qBox" hidden novalidate>
+      <p class="picked" id="picked"></p>
+      <h2 class="q-open" id="qTitle" tabindex="-1">Where should we send your confirmation?</h2>
+      <div class="field"><label for="fullName">Full Name</label><input id="fullName" autocomplete="name" placeholder="Enter your full name"><p class="err" hidden></p></div>
+      <div class="field"><label for="phone">Phone</label><input id="phone" type="tel" autocomplete="tel" placeholder="(555) 000-0000"><p class="err" hidden></p></div>
+      <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="your@email.com"><p class="err" hidden></p></div>
+      <input class="hp" id="company" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div class="err" id="bookErr" role="alert" hidden></div>
+      <button type="submit" class="btn-main" id="confirm" style="margin-top:8px">Confirm My Call →</button>
+      <button type="button" class="back" id="change">← Choose a different time</button>
+    </form>
+    <p class="legal-links"><a data-href="privacyUrl" href="#">Privacy Policy</a> | <a data-href="termsUrl" href="#">Terms of Service</a></p>
+  </div>
+</div>
+<p class="brand-cap"><span data-c="brand"></span><br>Operated by <span data-c="legalEntity"></span></p>
+<div class="trust"><span>Completely Free</span><span>No Pressure</span><span>Licensed Agents</span><span>30 Minutes</span></div>
+</main><div id="site-footer"></div>
+<script src="assets/config.js?v=5"></script><script src="assets/track.js?v=5"></script><script src="assets/site.js?v=5"></script>
+<script>
+/* Open booking page: no survey first. Pick a time, enter contact details, and the call is booked. */
+(function () {
+  var el = function (i) { return document.getElementById(i); };
+  el("previewNote").hidden = !NCR.preview;
+  NCR.event("Booking_Viewed");
+  var tz = Intl.DateTimeFormat().resolvedOptions().timeZone, days = [], day = 0, chosen = "", busy = false, token = "";
+  var dayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  var timeFmt = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
+  var fullFmt = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+  var chip = function (cls, text, on) { var b = document.createElement("button"); b.type = "button"; b.className = cls; b.textContent = text; b.addEventListener("click", on); return b; };
+  function renderDays() {
+    var box = el("days"); box.textContent = "";
+    days.forEach(function (d, i) {
+      var b = chip("day", dayFmt.format(new Date(d.date + "T12:00:00Z")), function () { day = i; renderDays(); });
+      b.setAttribute("aria-pressed", i === day ? "true" : "false"); box.appendChild(b);
+    });
+    renderTimes();
+  }
+  function renderTimes() {
+    var box = el("times"); box.textContent = "";
+    [["Morning", 0, 12], ["Afternoon", 12, 17], ["Evening", 17, 24]].forEach(function (g) {
+      var slots = days[day].slots.filter(function (s) { var h = new Date(s).getHours(); return h >= g[1] && h < g[2]; });
+      if (!slots.length) return;
+      var h = document.createElement("h3"); h.className = "t-group"; h.textContent = g[0]; box.appendChild(h);
+      var wrap = document.createElement("div"); wrap.className = "t-grid";
+      slots.forEach(function (s) { wrap.appendChild(chip("time", timeFmt.format(new Date(s)), function () { pick(s); })); });
+      box.appendChild(wrap);
+    });
+  }
+  function pick(s) {
+    chosen = s; el("days").hidden = el("times").hidden = el("calStatus").hidden = true;
+    el("qBox").hidden = false; el("picked").textContent = fullFmt.format(new Date(s));
+    el("bookSub").textContent = "Last step: tell us where to send your confirmation.";
+    NCR.event("Slot_Selected"); el("qTitle").focus({ preventScroll: true }); document.querySelector(".cal-card").scrollIntoView({ block: "start" });
+  }
+  function reset(msg) {
+    chosen = ""; el("qBox").hidden = true; el("days").hidden = el("times").hidden = el("calStatus").hidden = false;
+    el("bookSub").textContent = "Pick the time that works best for you."; load(msg);
+  }
+  function load(msg) {
+    el("calStatus").textContent = "Loading available times…"; el("days").textContent = ""; el("times").textContent = "";
+    fetch("/api/slots?tz=" + encodeURIComponent(tz)).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) throw 0;
+      days = d.days; day = 0;
+      if (!days.length) { el("calStatus").textContent = "No times are open right now. Please check back soon."; return; }
+      el("calStatus").textContent = (msg ? msg + " " : "") + "Times shown in your local time."; renderDays();
+    }).catch(function () { el("calStatus").textContent = "We couldn't load the calendar. Please refresh the page."; });
+  }
+  function fieldErr(input, msg) {
+    var p = input.parentElement.querySelector(".err");
+    p.textContent = msg; p.hidden = !msg; input.setAttribute("aria-invalid", msg ? "true" : "false");
+    return !msg;
+  }
+  function done(start) {
+    location.href = "thank-you.html";
+  }
+  function fail(msg) {
+    busy = false; var btn = el("confirm"); btn.disabled = false; btn.textContent = "Confirm My Call →";
+    var err = el("bookErr"); err.textContent = msg; err.hidden = false;
+  }
+  function book() {
+    var id = NCR.uuid();
+    NCR.post("/api/book", { token: token, start: chosen, open: "", tz: tz, eventId: id }).then(function (r) {
+      if (r.ok && r.data.confirmed === true && r.data.appointmentId) {
+        busy = false;
+        NCR.pixel("Schedule", id, { value: r.data.value || 0, currency: "USD", content_name: "Free Retirement Review" });
+        NCR.ss.set("ncr_appt", r.data.start); done(); return;
+      }
+      if (r.status === 409) { busy = false; var btn = el("confirm"); btn.disabled = false; btn.textContent = "Confirm My Call →"; reset("That time was just taken. Please choose another."); return; }
+      fail("We couldn't confirm your call, so it isn't booked yet. Please try again.");
+    });
+  }
+  el("change").addEventListener("click", function () { reset(); });
+  el("qBox").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var n = el("fullName"), p = el("phone"), m = el("email"), d = p.value.replace(/\D/g, "");
+    var a = fieldErr(n, n.value.trim() ? "" : "Please enter your full name.");
+    var b = fieldErr(p, (d.length === 10 || (d.length === 11 && d[0] === "1")) ? "" : "Please enter a 10-digit phone number.");
+    var c = fieldErr(m, /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.value.trim()) ? "" : "Please enter a valid email address.");
+    if (!(a && b && c)) { (a ? (b ? m : p) : n).focus(); return; }
+    if (NCR.preview) { fail("Preview mode: booking is off."); return; }
+    if (busy) return;
+    busy = true; var btn = el("confirm"); btn.disabled = true; btn.textContent = "Booking your call…"; el("bookErr").hidden = true;
+    NCR.ss.set("ncr_fname", n.value.trim().split(/\s+/)[0] || "");
+    NCR.ss.set("ncr_phone", p.value.trim()); NCR.ss.set("ncr_email", m.value.trim());
+    if (token) { book(); return; }
+    var leadId = NCR.uuid();
+    NCR.post("/api/lead", { fullName: n.value, phone: p.value, email: m.value, company: el("company").value, answers: {}, tz: tz, leadEventId: leadId, attribution: NCR.attribution() }).then(function (r) {
+      if (!(r.ok && r.data.ok && r.data.token)) { fail("We couldn't save your details. Please check them and try again."); return; }
+      token = r.data.token;
+      NCR.pixel("SubmitApplication", leadId, { value: r.data.value, currency: "USD", content_name: "Free Retirement Review" });
+      NCR.ss.set("ncr_token", token);
+      book();
+    });
+  });
+  load();
+})();
+</script></body></html>
